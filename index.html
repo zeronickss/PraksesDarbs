@@ -139,5 +139,138 @@
             <button id="btn-lb-close" class="btn-secondary" style="margin-top:20px;">Back</button>
         </div>
     </div>
+    <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const API = 'api.php';
+
+    // Settings
+    const GRAVITY = 0.15; 
+    const FLAP = -4.2;
+    const PIPE_SPEED = 2.2;
+    const PIPE_GAP = 160;
+
+    let bird, pipes, score, frames, gameActive = false, username = "";
+    let sessionBest = 0;
+
+    function reset() {
+        bird = { x: 60, y: 200, v: 0, w: 34, h: 24 };
+        pipes = [];
+        score = 0;
+        frames = 0;
+        document.getElementById('hud-score').innerText = score;
+    }
+
+    function spawnPipe() {
+        const h = Math.floor(Math.random() * (canvas.height - PIPE_GAP - 120)) + 60;
+        pipes.push({ x: canvas.width, topH: h, scored: false });
+    }
+
+    function update() {
+        if (!gameActive) return;
+        frames++;
+        bird.v += GRAVITY;
+        bird.y += bird.v;
+        if (frames % 90 === 0) spawnPipe();
+
+        pipes.forEach(p => {
+            p.x -= PIPE_SPEED;
+            if (bird.x + bird.w - 4 > p.x && bird.x + 4 < p.x + 50) {
+                if (bird.y + 4 < p.topH || bird.y + bird.h - 4 > p.topH + PIPE_GAP) endGame();
+            }
+            if (!p.scored && p.x + 50 < bird.x) {
+                p.scored = true;
+                score++;
+                document.getElementById('hud-score').innerText = score;
+                if (score > sessionBest) {
+                    sessionBest = score;
+                    document.getElementById('hud-best').innerText = sessionBest;
+                }
+            }
+        });
+        if (bird.y > canvas.height || bird.y < -50) endGame();
+        pipes = pipes.filter(p => p.x > -60);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Pipes with subtle gradient look
+        pipes.forEach(p => {
+            // Top Pipe
+            ctx.fillStyle = "#22c55e"; // Green
+            ctx.fillRect(p.x, 0, 50, p.topH);
+            ctx.fillStyle = "#16a34a"; // Darker green cap
+            ctx.fillRect(p.x - 2, p.topH - 20, 54, 20);
+
+            // Bottom Pipe
+            ctx.fillStyle = "#22c55e";
+            ctx.fillRect(p.x, p.topH + PIPE_GAP, 50, canvas.height);
+            ctx.fillStyle = "#16a34a";
+            ctx.fillRect(p.x - 2, p.topH + PIPE_GAP, 54, 20);
+        });
+
+        // Bird with "Eye"
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath();
+        ctx.roundRect(bird.x, bird.y, bird.w, bird.h, 6);
+        ctx.fill();
+        ctx.fillStyle = "white"; // Eye
+        ctx.fillRect(bird.x + 20, bird.y + 4, 8, 8);
+        ctx.fillStyle = "black"; // Pupil
+        ctx.fillRect(bird.x + 25, bird.y + 6, 3, 3);
+
+        if (gameActive) requestAnimationFrame(() => { update(); draw(); });
+    }
+
+    async function endGame() {
+        gameActive = false;
+        document.getElementById('overlay-go').classList.remove('hidden');
+        document.getElementById('go-score').innerText = score;
+        try {
+            const res = await fetch(`${API}?action=save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, score })
+            });
+            const data = await res.json();
+            if (data.best) {
+                sessionBest = data.best;
+                document.getElementById('hud-best').innerText = sessionBest;
+            }
+        } catch (e) {}
+    }
+
+    const handleAction = () => { if(gameActive) bird.v = FLAP; };
+    window.addEventListener('keydown', (e) => { if(e.code === 'Space') handleAction(); });
+    canvas.addEventListener('mousedown', handleAction);
+    
+    document.getElementById('btn-start').onclick = () => {
+        username = document.getElementById('username-input').value.trim() || "Pilot";
+        document.getElementById('hud-name').innerText = username;
+        document.getElementById('overlay-login').classList.add('hidden');
+        reset(); gameActive = true; draw();
+    };
+
+    document.getElementById('btn-retry').onclick = () => {
+        document.getElementById('overlay-go').classList.add('hidden');
+        reset(); gameActive = true; draw();
+    };
+    
+    document.getElementById('btn-lb').onclick = async () => {
+        document.getElementById('overlay-lb').classList.remove('hidden');
+        try {
+            const res = await fetch(`${API}?action=leaderboard`);
+            const data = await res.json();
+            let html = '<table><tr><th>Pilot</th><th style="text-align:right">Best</th></tr>';
+            data.leaderboard.forEach(r => html += `<tr><td>${r.username}</td><td style="text-align:right">${r.best_score}</td></tr>`);
+            document.getElementById('lb-content').innerHTML = html + '</table>';
+        } catch (e) { document.getElementById('lb-content').innerHTML = "DB Error"; }
+    };
+
+    document.getElementById('btn-lb-close').onclick = () => document.getElementById('overlay-lb').classList.add('hidden');
+
+    reset();
+</script>
 </body>
 </html>
