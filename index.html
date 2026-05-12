@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="lv">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -63,7 +63,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="340" height="480"></canvas>
 
-        <!-- 1. LOGIN EKRĀNS -->
+
         <div class="overlay" id="overlay-login">
             <h1>Putnu spēle</h1>
             <div id="login-msg"></div>
@@ -75,47 +75,51 @@
             </div>
         </div>
 
-        <!-- 2. STARTA IZVĒLNE -->
+  
         <div class="overlay hidden" id="overlay-start">
             <div class="welcome-text">
-                <p>Ready for flight,</p>
-                <h2 id="welcome-pilot">Pilot</h2>
+                <p>Gatavs?</p>
+                <h2 id="welcome-pilot">User</h2>
             </div>
-            <button id="btn-actual-start" style="font-size: 18px; padding: 15px 30px;">Start Mission</button>
-            <button id="btn-logout" class="btn-secondary" style="margin-top: 40px; font-size: 11px;">Logout</button>
+            <button id="btn-actual-start" style="font-size: 18px; padding: 15px 30px;">Sākt speli</button>
+            <button id="btn-logout" class="btn-secondary" style="margin-top: 40px; font-size: 11px;">Izrakstīties</button>
         </div>
 
-        <!-- 3. GAME OVER EKRĀNS -->
+   
         <div class="overlay hidden" id="overlay-go">
             <h2 style="color: #ef4444; margin-bottom: 5px;">MISSION FAILED</h2>
             <p style="margin-top: 0; color: #94a3b8;">Score: <span id="go-score" style="color: white; font-size: 32px; font-weight: bold;">0</span></p>
             
-            <button id="btn-retry" style="width: 180px; margin-bottom: 10px;">Try Again</button>
-            <!-- JAUNĀ POGA -->
-            <button id="btn-exit-menu" class="btn-secondary" style="width: 180px; margin-bottom: 10px;">Exit to Menu</button>
+            <button id="btn-retry" style="width: 180px; margin-bottom: 10px;">Mēģināt vēlreiz</button>
+     
+            <button id="btn-exit-menu" class="btn-secondary" style="width: 180px; margin-bottom: 10px;">Iziet uz izvēlni</button>
             
-            <button id="btn-lb" class="btn-secondary" style="width: 180px;">Leaderboard</button>
+            <button id="btn-lb" class="btn-secondary" style="width: 180px;">Līderu saraksts</button>
         </div>
 
-        <!-- 4. LĪDERU SARAKSTS -->
+   
         <div class="overlay hidden" id="overlay-lb">
             <h3>TOP PILOTS</h3>
-            <div id="lb-content" style="width:100%; display:flex; justify-content:center;">Loading...</div>
-            <button id="btn-lb-close" class="btn-secondary" style="margin-top:20px;">Back</button>
+            <div id="lb-content" style="width:100%; display:flex; justify-content:center;">Lādējas...</div>
+            <button id="btn-lb-close" class="btn-secondary" style="margin-top:20px;">Atpakaļ</button>
         </div>
     </div>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
+   const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const API = 'api.php';
 
     const GRAVITY = 0.15, FLAP = -4.2, PIPE_SPEED = 2.2, PIPE_GAP = 160;
-    let bird, pipes, score, frames, gameActive = false, username = "", sessionBest = 0;
+
+    let bird, pipes, score, frames, gameActive = false, gameStarted = false, username = "", sessionBest = 0;
 
     function reset() {
         bird = { x: 60, y: 200, v: 0, w: 34, h: 24 };
-        pipes = []; score = 0; frames = 0;
+        pipes = []; 
+        score = 0; 
+        frames = 0;
+        gameStarted = false; 
         document.getElementById('hud-score').innerText = score;
     }
 
@@ -125,9 +129,14 @@
     }
 
     function update() {
-        if (!gameActive) return;
-        frames++; bird.v += GRAVITY; bird.y += bird.v;
+        if (!gameActive || !gameStarted) return; 
+
+        frames++; 
+        bird.v += GRAVITY; 
+        bird.y += bird.v;
+
         if (frames % 90 === 0) spawnPipe();
+
         pipes.forEach(p => {
             p.x -= PIPE_SPEED;
             if (bird.x + bird.w - 4 > p.x && bird.x + 4 < p.x + 50) {
@@ -138,22 +147,39 @@
                 document.getElementById('hud-score').innerText = score;
             }
         });
+
         if (bird.y > canvas.height || bird.y < -50) endGame();
         pipes = pipes.filter(p => p.x > -60);
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+ 
         pipes.forEach(p => {
-            ctx.fillStyle = "#22c55e"; ctx.fillRect(p.x, 0, 50, p.topH);
+            ctx.fillStyle = "#22c55e"; 
+            ctx.fillRect(p.x, 0, 50, p.topH);
             ctx.fillRect(p.x, p.topH + PIPE_GAP, 50, canvas.height);
         });
-        ctx.fillStyle = "#facc15"; ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
+
+
+        ctx.fillStyle = "#facc15"; 
+        ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
+
+
+        if (gameActive && !gameStarted) {
+            ctx.fillStyle = "white";
+            ctx.font = "16px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("Klikšķini vai nospied spacebar lai sāktu", canvas.width / 2, canvas.height / 2 + 50);
+        }
+
         if (gameActive) requestAnimationFrame(() => { update(); draw(); });
     }
 
     async function endGame() {
         gameActive = false;
+        gameStarted = false;
         document.getElementById('overlay-go').classList.remove('hidden');
         document.getElementById('go-score').innerText = score;
         try {
@@ -170,7 +196,12 @@
         } catch (e) {}
     }
 
-    const handleAction = () => { if(gameActive) bird.v = FLAP; };
+    const handleAction = () => { 
+        if(gameActive) {
+            if (!gameStarted) gameStarted = true; 
+            bird.v = FLAP; 
+        }
+    };
     
     window.addEventListener('keydown', (e) => { 
         if(e.code === 'Space') { 
@@ -181,6 +212,8 @@
         } 
     });
     canvas.addEventListener('mousedown', handleAction);
+
+
 
     async function handleAuth(type) {
         const u = document.getElementById('username-input').value;
@@ -221,12 +254,11 @@
         reset(); gameActive = true; draw();
     };
 
-    // FUNKCIJA ATGRIEŠANAI UZ IZVĒLNI
     document.getElementById('btn-exit-menu').onclick = () => {
         document.getElementById('overlay-go').classList.add('hidden');
         document.getElementById('overlay-start').classList.remove('hidden');
-        reset(); // Notīrām spēles laukumu
-        draw();  // Pārzīmējam tīru laukumu
+        reset(); 
+        draw();  
     };
 
     document.getElementById('btn-lb').onclick = async () => {
