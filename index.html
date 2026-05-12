@@ -22,8 +22,7 @@
             border-bottom: 2px solid rgba(255,255,255,0.1);
         }
         .hud-center { text-align: center; color: var(--accent); text-transform: uppercase; font-size: 12px; }
-        #game-container { position: relative; border-radius: 0 0 12px 12px; overflow: hidden;
-        box-shadow: 1px 1px 10px rgba(0,0,0,0.5); }
+        #game-container { position: relative; border-radius: 0 0 12px 12px; overflow: hidden; box-shadow: 1px 1px 10px black; }
         canvas { background: linear-gradient(to bottom, #1e293b, #0f172a); display: block; }
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -40,11 +39,17 @@
         button { 
             padding: 12px 20px; cursor: pointer; background: var(--accent); 
             border: none; font-weight: 700; border-radius: 8px; text-transform: uppercase;
+            transition: transform 0.1s;
         }
+        button:hover { filter: brightness(1.1); transform: scale(1.05); }
         .btn-secondary { background: #475569; color: white; }
         #login-msg { color: #ef4444; font-size: 13px; margin-bottom: 10px; min-height: 1.2em; }
         table { width: 90%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        
+        .welcome-text { margin-bottom: 20px; }
+        .welcome-text h2 { margin: 0; color: var(--accent); }
+        .welcome-text p { margin: 5px 0; color: #94a3b8; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -58,6 +63,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="340" height="480"></canvas>
 
+        <!-- 1. LOGIN EKRĀNS -->
         <div class="overlay" id="overlay-login">
             <h1>Putnu spēle</h1>
             <div id="login-msg"></div>
@@ -69,13 +75,29 @@
             </div>
         </div>
 
-        <div class="overlay hidden" id="overlay-go">
-            <h2 style="color: #ef4444;">MISSION FAILED</h2>
-            <p>Score: <span id="go-score" style="font-size: 32px; font-weight: bold;">0</span></p>
-            <button id="btn-retry">Try Again</button>
-            <button id="btn-lb" class="btn-secondary" style="margin-top:10px;">Leaderboard</button>
+        <!-- 2. STARTA IZVĒLNE -->
+        <div class="overlay hidden" id="overlay-start">
+            <div class="welcome-text">
+                <p>Ready for flight,</p>
+                <h2 id="welcome-pilot">Pilot</h2>
+            </div>
+            <button id="btn-actual-start" style="font-size: 18px; padding: 15px 30px;">Start Mission</button>
+            <button id="btn-logout" class="btn-secondary" style="margin-top: 40px; font-size: 11px;">Logout</button>
         </div>
 
+        <!-- 3. GAME OVER EKRĀNS -->
+        <div class="overlay hidden" id="overlay-go">
+            <h2 style="color: #ef4444; margin-bottom: 5px;">MISSION FAILED</h2>
+            <p style="margin-top: 0; color: #94a3b8;">Score: <span id="go-score" style="color: white; font-size: 32px; font-weight: bold;">0</span></p>
+            
+            <button id="btn-retry" style="width: 180px; margin-bottom: 10px;">Try Again</button>
+            <!-- JAUNĀ POGA -->
+            <button id="btn-exit-menu" class="btn-secondary" style="width: 180px; margin-bottom: 10px;">Exit to Menu</button>
+            
+            <button id="btn-lb" class="btn-secondary" style="width: 180px;">Leaderboard</button>
+        </div>
+
+        <!-- 4. LĪDERU SARAKSTS -->
         <div class="overlay hidden" id="overlay-lb">
             <h3>TOP PILOTS</h3>
             <div id="lb-content" style="width:100%; display:flex; justify-content:center;">Loading...</div>
@@ -141,7 +163,7 @@
                 body: JSON.stringify({ score })
             });
             const data = await res.json();
-            if (data.best) {
+            if (data.best !== undefined) {
                 sessionBest = data.best;
                 document.getElementById('hud-best').innerText = sessionBest;
             }
@@ -150,7 +172,6 @@
 
     const handleAction = () => { if(gameActive) bird.v = FLAP; };
     
-    // IZLABOTS: Atļauj rakstīt, bet Space spēles laikā neļauj lapai lēkāt
     window.addEventListener('keydown', (e) => { 
         if(e.code === 'Space') { 
             if(gameActive) {
@@ -177,18 +198,37 @@
                 username = data.username; sessionBest = data.best;
                 document.getElementById('hud-name').innerText = username;
                 document.getElementById('hud-best').innerText = sessionBest;
+                document.getElementById('welcome-pilot').innerText = username;
+                
                 document.getElementById('overlay-login').classList.add('hidden');
-                reset(); gameActive = true; draw();
+                document.getElementById('overlay-start').classList.remove('hidden');
             }
         } catch (e) { msg.innerText = "Servera kļūda!"; }
     }
 
+    document.getElementById('btn-actual-start').onclick = () => {
+        document.getElementById('overlay-start').classList.add('hidden');
+        reset(); 
+        gameActive = true; 
+        draw();
+    };
+
     document.getElementById('btn-login').onclick = () => handleAuth('login');
     document.getElementById('btn-register').onclick = () => handleAuth('register');
+    
     document.getElementById('btn-retry').onclick = () => {
         document.getElementById('overlay-go').classList.add('hidden');
         reset(); gameActive = true; draw();
     };
+
+    // FUNKCIJA ATGRIEŠANAI UZ IZVĒLNI
+    document.getElementById('btn-exit-menu').onclick = () => {
+        document.getElementById('overlay-go').classList.add('hidden');
+        document.getElementById('overlay-start').classList.remove('hidden');
+        reset(); // Notīrām spēles laukumu
+        draw();  // Pārzīmējam tīru laukumu
+    };
+
     document.getElementById('btn-lb').onclick = async () => {
         document.getElementById('overlay-lb').classList.remove('hidden');
         const res = await fetch(`${API}?action=leaderboard`);
@@ -197,7 +237,12 @@
         data.leaderboard.forEach(r => h += `<tr><td>${r.username}</td><td>${r.best_score}</td></tr>`);
         document.getElementById('lb-content').innerHTML = h + '</table>';
     };
+
     document.getElementById('btn-lb-close').onclick = () => document.getElementById('overlay-lb').classList.add('hidden');
+
+    document.getElementById('btn-logout').onclick = () => {
+        location.reload(); 
+    };
 
     draw();
 </script>
