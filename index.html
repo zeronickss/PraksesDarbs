@@ -202,12 +202,11 @@
         const h = Math.floor(Math.random() * (canvas.height - PIPE_GAP - 120)) + 60;
         pipes.push({ x: canvas.width, topH: h, scored: false });
 
-        // 35% chance to spawn a powerup inside the pipe gap
         if (Math.random() < 0.10) {
-            const type = Math.random() < 0.4 ? 'shield' : 'coin'; // 40% shield, 60% coin
-            const powerupY = h + (PIPE_GAP / 2); // Center it in the gap
+            const type = Math.random() < 0.4 ? 'shield' : 'coin';
+            const powerupY = h + (PIPE_GAP / 2);
             powerups.push({
-                x: canvas.width + 15, // centered relative to the 50px pipe width
+                x: canvas.width + 15,
                 y: powerupY,
                 radius: 10,
                 type: type,
@@ -225,7 +224,7 @@
 
         if (frames % 90 === 0) spawnPipe();
 
-        // Update Pipes & Check collisions
+    
         pipes.forEach(p => {
             p.x -= PIPE_SPEED;
             if (bird.x + bird.w - 4 > p.x && bird.x + 4 < p.x + 50) {
@@ -233,7 +232,7 @@
                     if (hasShield) {
                         hasShield = false;
                         document.getElementById('powerup-status').innerText = "";
-                        p.x = -100; // Trash this pipe safely so it doesn't instantly re-collide
+                        p.x = -100; 
                     } else {
                         endGame();
                     }
@@ -245,12 +244,12 @@
             }
         });
 
-        // Update Powerups & Check Item Pickup
+    
         powerups.forEach(p => {
             p.x -= PIPE_SPEED;
 
             if (!p.collected) {
-                // AABB to Circle simple bounding box overlap test
+            
                 const closestX = Math.max(bird.x, Math.min(p.x, bird.x + bird.w));
                 const closestY = Math.max(bird.y, Math.min(p.y, bird.y + bird.h));
                 const distanceX = p.x - closestX;
@@ -263,7 +262,7 @@
                         hasShield = true;
                         document.getElementById('powerup-status').innerText = "🛡️ VAIROGS";
                     } else if (p.type === 'coin') {
-                        score += 3; // Bonus points!
+                        score += 3; 
                         document.getElementById('hud-score').innerText = score;
                     }
                 }
@@ -272,7 +271,7 @@
 
         if (bird.y > canvas.height || bird.y < -50) endGame();
         
-        // Cleanup offscreen objects
+        
         pipes = pipes.filter(p => p.x > -60);
         powerups = powerups.filter(p => p.x > -30);
     }
@@ -280,37 +279,36 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw Pipes
+    
         pipes.forEach(p => {
             ctx.fillStyle = "#22c55e"; 
             ctx.fillRect(p.x, 0, 50, p.topH);
             ctx.fillRect(p.x, p.topH + PIPE_GAP, 50, canvas.height);
         });
 
-        // Draw Powerups
-        powerups.forEach(p => {
+           powerups.forEach(p => {
             if (p.collected) return;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             if (p.type === 'shield') {
-                ctx.fillStyle = "#38bdf8"; // Cyan Shield
+                ctx.fillStyle = "#38bdf8";
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = "#38bdf8";
             } else {
-                ctx.fillStyle = "#fbbf24"; // Gold Coin
+                ctx.fillStyle = "#fbbf24";
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = "#fbbf24";
             }
             ctx.fill();
             ctx.closePath();
-            ctx.shadowBlur = 0; // Reset glow effects
+            ctx.shadowBlur = 0;
         });
 
-        // Draw Bird
+        
         ctx.fillStyle = "#facc15"; 
         ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
 
-        // Draw active Shield visual aura directly over the bird
+        
         if (hasShield) {
             ctx.strokeStyle = "#38bdf8";
             ctx.lineWidth = 3;
